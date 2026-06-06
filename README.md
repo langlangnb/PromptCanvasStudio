@@ -388,9 +388,4 @@ npm start
 
 ## License
 
-如果你准备开源，建议补一个许可证文件，例如：
-
-- `MIT`
-- `Apache-2.0`
-
-当前仓库还没有附带 `LICENSE` 文件；上传到 GitHub 前建议一并补上。
+- `Apache-2.0`[License](https://github.com/langlangnb/PromptCanvasStudio/blob/main/LICENSE)
