@@ -1,0 +1,9 @@
+{
+  "name": "gpt-image-2-chat-studio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A local chat-style image generation tool for GPT Image 2.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

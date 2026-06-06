@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GPT Image 2 Studio</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand-block">
+          <p class="eyebrow">GPT IMAGE 2</p>
+          <h1>对话式生图工作台</h1>
+          <p class="brand-copy">
+            面向 `gpt-image-2` 的生图网页。通过对话线程组织提示词、参考图、设置和结果。
+          </p>
+        </div>
+
+        <section class="control-card control-card-scrollable">
+          <div class="card-head">
+            <h2>生成控制</h2>
+            <button class="ghost-button" id="openSettingsButton" type="button">设置</button>
+          </div>
+
+          <label class="field">
+            <span>生成分辨率</span>
+            <div class="segmented" id="resolutionGroup">
+              <button class="segment is-active" data-resolution="1k" type="button">1K</button>
+              <button class="segment" data-resolution="2k" type="button">2K</button>
+              <button class="segment" data-resolution="4k" type="button">4K</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>画幅</span>
+            <div class="segmented" id="aspectGroup">
+              <button class="segment is-active" data-aspect="square" type="button">方图</button>
+              <button class="segment" data-aspect="landscape" type="button">横图 16:9</button>
+              <button class="segment" data-aspect="nineSixteen" type="button">竖图 9:16</button>
+              <button class="segment" data-aspect="threeFour" type="button">3:4</button>
+              <button class="segment" data-aspect="fourThree" type="button">4:3</button>
+            </div>
+          </label>
+
+          <label class="field">
+            <span>图片数量</span>
+            <input
+              id="quantityInput"
+              name="quantity"
+              type="number"
+              min="1"
+              max="20"
+              step="1"
+              value="1"
+              inputmode="numeric"
+            />
+            <div class="meta-note quantity-hint" id="quantityHint">
+              当前按手动数量 1 张执行。可输入 1-20，也可在提示词里直接写“10张”或“1张主图+9张副图”。
+            </div>
+          </label>
+
+          <label class="field">
+            <span>电商生图模式</span>
+            <label class="checkbox-row" for="ecommerceModeInput">
+              <input id="ecommerceModeInput" type="checkbox" />
+              <span>启用主图 / 副图多图优化</span>
+            </label>
+            <div class="meta-note">
+              启用后，多图任务会按电商图思路拆成主图与副图，并可先由辅助文本模型生成差异化提示词，减少重复出图。
+            </div>
+          </label>
+
+          <label class="field">
+            <span>多图模式</span>
+            <div class="segmented" id="generationModeGroup">
+              <button class="segment is-active" data-generation-mode="queue" type="button">
+                排队生成
+              </button>
+              <button class="segment" data-generation-mode="parallel" type="button">并行生成</button>
+            </div>
+            <div class="meta-note">
+              单图时两者无差别。并行模式会同时发起多张请求，不支持暂停 / 恢复。
+            </div>
+          </label>
+
+          <label class="field">
+            <span>输出格式</span>
+            <select id="outputFormatSelect">
+              <option value="png">PNG</option>
+              <option value="jpeg">JPEG</option>
+              <option value="webp">WEBP</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>质量</span>
+            <select id="qualitySelect">
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="auto">Auto</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>背景</span>
+            <select id="backgroundSelect">
+              <option value="auto">Auto</option>
+              <option value="opaque">Opaque</option>
+              <option value="transparent">Transparent</option>
+            </select>
+          </label>
+
+          <div class="meta-note" id="resolutionHint">
+            1K / 2K / 4K 会直接控制发送给模型的生成尺寸。
+          </div>
+        </section>
+
+        <section class="control-card compact">
+          <h2>状态</h2>
+          <div class="status-grid">
+            <div>
+              <span class="status-label">服务</span>
+              <strong id="healthValue">检查中</strong>
+            </div>
+            <div>
+              <span class="status-label">模型</span>
+              <strong id="modelValue">gpt-image-2</strong>
+            </div>
+            <div>
+              <span class="status-label">线程消息</span>
+              <strong id="messageCountValue">0</strong>
+            </div>
+            <div>
+              <span class="status-label">最近耗时</span>
+              <strong id="latencyValue">-</strong>
+            </div>
+          </div>
+        </section>
+      </aside>
+
+      <main class="main-panel">
+        <header class="thread-head">
+          <div>
+            <p class="eyebrow">THREAD</p>
+            <h2>图像对话</h2>
+          </div>
+          <button class="secondary-button" id="clearThreadButton" type="button">清空线程</button>
+        </header>
+
+        <section class="thread" id="thread"></section>
+
+        <form class="composer" id="composerForm">
+          <div class="composer-mode-row">
+            <div class="segmented composer-mode-group" id="composerModeGroup">
+              <button class="segment is-active" data-composer-mode="generate" type="button">
+                生成图片
+              </button>
+              <button class="segment" data-composer-mode="reverse" type="button">
+                反推提示词
+              </button>
+            </div>
+          </div>
+          <label class="composer-label" id="composerLabel" for="promptInput">输入你要生成的画面描述</label>
+          <div class="composer-reference-head">
+            <span class="composer-reference-tip" id="referenceTip">
+              可直接在输入框内粘贴图片作为参考图，发送时会附带当前提示词与参考图。
+            </span>
+            <button
+              class="ghost-button composer-reference-clear"
+              id="clearReferenceImagesButton"
+              type="button"
+              disabled
+            >
+              清空参考图
+            </button>
+          </div>
+          <div class="composer-reference-strip" id="composerReferenceStrip" hidden></div>
+          <textarea
+            id="promptInput"
+            name="prompt"
+            rows="4"
+            maxlength="4000"
+            placeholder="例如：低饱和胶片风格的室内建筑摄影，晨雾穿过长窗，木质陈列架上摆放极简陶瓷。也可以先粘贴一张参考图，再补充你要保留和改变的部分。"
+          ></textarea>
+          <div class="composer-actions">
+            <div class="composer-tip" id="composerTip">
+              Shift + Enter 换行，Enter 发送。支持在输入框内直接粘贴图片。
+            </div>
+            <div class="composer-run-controls">
+              <button
+                class="secondary-button"
+                id="pauseGenerationButton"
+                type="button"
+                hidden
+                disabled
+              >
+                暂停
+              </button>
+              <button
+                class="secondary-button"
+                id="resumeGenerationButton"
+                type="button"
+                hidden
+                disabled
+              >
+                恢复
+              </button>
+              <button class="primary-button" id="generateButton" type="submit">生成图片</button>
+            </div>
+          </div>
+        </form>
+      </main>
+    </div>
+
+    <dialog class="settings-dialog" id="settingsDialog">
+      <form class="settings-panel" id="settingsForm" method="dialog">
+        <div class="card-head">
+          <div>
+            <p class="eyebrow">SETTINGS</p>
+            <h2>接口设置</h2>
+          </div>
+          <button class="ghost-button" id="closeSettingsButton" type="button">关闭</button>
+        </div>
+
+        <label class="field">
+          <span>API 端点 / Base URL</span>
+          <input
+            id="endpointInput"
+            name="endpoint"
+            type="text"
+            placeholder="https://api.openai.com/v1"
+            autocomplete="off"
+          />
+        </label>
+
+        <label class="field">
+          <span>API 密钥</span>
+          <input
+            id="apiKeyInput"
+            name="apiKey"
+            type="password"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+        </label>
+
+        <label class="field">
+          <span>模型</span>
+          <input id="modelInput" name="model" type="text" value="gpt-image-2" autocomplete="off" />
+        </label>
+
+        <label class="field">
+          <span>辅助文本模型</span>
+          <input
+            id="assistantModelInput"
+            name="assistantModel"
+            type="text"
+            value="gpt-5.4-mini"
+            autocomplete="off"
+          />
+        </label>
+
+        <label class="field">
+          <span>辅助模型推理强度</span>
+          <select id="assistantReasoningEffortSelect" name="assistantReasoningEffort">
+            <option value="low">low</option>
+            <option value="medium">medium</option>
+            <option value="high">high</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span>辅助模型系统提示词</span>
+          <textarea
+            id="assistantSystemPromptInput"
+            name="assistantSystemPrompt"
+            rows="8"
+            maxlength="6000"
+            placeholder="默认用于检查与优化多图提示词，减少重复出图。"
+          ></textarea>
+        </label>
+
+        <label class="field">
+          <span>图片反推系统提示词</span>
+          <textarea
+            id="reversePromptSystemPromptInput"
+            name="reversePromptSystemPrompt"
+            rows="8"
+            maxlength="6000"
+            placeholder="默认用于根据图片反推可直接生图的提示词。"
+          ></textarea>
+        </label>
+
+        <div class="meta-note">
+          如果你接的是兼容网关，这里直接填对应 `Base URL / model` 即可。电商生图模式启用且为多图时，会先复用同一个端点和密钥调用辅助文本模型拆解提示词。图片反推功能同样复用该文本模型，但会使用单独的反推系统提示词，把图片整理成可直接生图的提示词结果。
+        </div>
+
+        <label class="field">
+          <span>Moderation</span>
+          <select id="moderationSelect" name="moderation">
+            <option value="auto">auto</option>
+            <option value="low">low</option>
+          </select>
+        </label>
+
+        <div class="settings-actions">
+          <button class="secondary-button" id="resetSettingsButton" type="button">恢复默认</button>
+          <button class="primary-button" type="submit">保存设置</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog class="image-preview-dialog" id="imagePreviewDialog">
+      <div class="image-preview-panel">
+        <div class="image-preview-head">
+          <p class="eyebrow">PREVIEW</p>
+          <button class="ghost-button" id="closeImagePreviewButton" type="button">关闭</button>
+        </div>
+        <div class="image-preview-frame">
+          <img id="imagePreviewTarget" alt="放大预览图" />
+        </div>
+      </div>
+    </dialog>
+
+    <template id="messageTemplate">
+      <article class="message">
+        <div class="message-meta">
+          <span class="role"></span>
+          <span class="time"></span>
+        </div>
+        <div class="message-body"></div>
+      </article>
+    </template>
+
+    <script src="/app.js" defer></script>
+  </body>
+</html>
